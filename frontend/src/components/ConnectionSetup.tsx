@@ -25,8 +25,23 @@ export default function ConnectionSetup({ onConnect }: ConnectionSetupProps) {
     setErrorMessage('')
 
     try {
-      // Ensure URL has protocol
-      const testUrl = url.startsWith('http') ? url : `https://${url}`
+      // Ensure URL has protocol and is HTTPS
+      let testUrl = url.trim()
+      if (!testUrl.startsWith('http')) {
+        testUrl = `https://${testUrl}`
+      }
+      
+      // Warn if using HTTP (should be HTTPS for Tailscale Funnel)
+      if (testUrl.startsWith('http://') && !testUrl.includes('localhost')) {
+        console.warn('Using HTTP instead of HTTPS - Tailscale Funnel requires HTTPS')
+        testUrl = testUrl.replace('http://', 'https://')
+      }
+      
+      console.log('Testing connection to:', testUrl)
+      
+      // Create abort controller for timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
       
       // Test connection by fetching available models directly
       const response = await fetch(`${testUrl}/api/tags`, {
@@ -34,20 +49,27 @@ export default function ConnectionSetup({ onConnect }: ConnectionSetupProps) {
         headers: {
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
       })
+      
+      clearTimeout(timeoutId)
 
+      console.log('Fetch response received:', response.status, response.statusText)
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
       }
 
       const data = await response.json()
+      console.log('Parsed response data:', data)
       
       if (data.error) {
         throw new Error(data.error + (data.details ? `\n${data.details}` : ''))
       }
       
       if (data.models && data.models.length > 0) {
+        console.log('Found models:', data.models.length)
         setTestResult('success')
         setTimeout(() => {
           onConnect(testUrl)
@@ -59,8 +81,19 @@ export default function ConnectionSetup({ onConnect }: ConnectionSetupProps) {
     } catch (error) {
       setTestResult('error')
       const errorMsg = error instanceof Error ? error.message : 'Failed to connect'
-      setErrorMessage(errorMsg)
       console.error('Connection test failed:', error)
+      console.error('Error type:', error instanceof TypeError ? 'TypeError' : error instanceof Error ? error.name : typeof error)
+      
+      // Mobile-friendly error messages
+      if (error instanceof Error && error.name === 'AbortError') {
+        setErrorMessage('Connection timeout - server took too long to respond. Check if Ollama is running.')
+      } else if (error instanceof TypeError && errorMsg.includes('Failed to fetch')) {
+        setErrorMessage('Network error - check your internet connection or try again')
+      } else if (errorMsg.includes('Load failed')) {
+        setErrorMessage('Unable to reach Ollama server - verify Tailscale Funnel is running')
+      } else {
+        setErrorMessage(errorMsg)
+      }
     } finally {
       setTesting(false)
     }

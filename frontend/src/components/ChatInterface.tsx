@@ -42,7 +42,11 @@ export default function ChatInterface({ ollamaUrl, onDisconnect }: ChatInterface
 
   const fetchModels = async () => {
     try {
-      const response = await fetch(`${ollamaUrl}/api/tags`)
+      const response = await fetch('/api/tags', {
+        headers: {
+          'x-ollama-url': ollamaUrl,
+        },
+      })
       const data = await response.json()
       if (data.models && data.models.length > 0) {
         setModels(data.models)
@@ -62,10 +66,11 @@ export default function ChatInterface({ ollamaUrl, onDisconnect }: ChatInterface
     setLoading(true)
 
     try {
-      const response = await fetch(`${ollamaUrl}/api/generate`, {
+      const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-ollama-url': ollamaUrl,
         },
         body: JSON.stringify({
           model: selectedModel,

@@ -28,11 +28,12 @@ export default function ConnectionSetup({ onConnect }: ConnectionSetupProps) {
       // Ensure URL has protocol
       const testUrl = url.startsWith('http') ? url : `https://${url}`
       
-      // Test connection by fetching available models
-      const response = await fetch(`${testUrl}/api/tags`, {
+      // Test connection by fetching available models via proxy
+      const response = await fetch('/api/tags', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'x-ollama-url': testUrl,
         },
       })
 

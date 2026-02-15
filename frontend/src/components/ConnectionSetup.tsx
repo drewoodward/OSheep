@@ -28,20 +28,24 @@ export default function ConnectionSetup({ onConnect }: ConnectionSetupProps) {
       // Ensure URL has protocol
       const testUrl = url.startsWith('http') ? url : `https://${url}`
       
-      // Test connection by fetching available models via proxy
-      const response = await fetch('/api/tags', {
+      // Test connection by fetching available models directly
+      const response = await fetch(`${testUrl}/api/tags`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'x-ollama-url': testUrl,
         },
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
       }
 
       const data = await response.json()
+      
+      if (data.error) {
+        throw new Error(data.error + (data.details ? `\n${data.details}` : ''))
+      }
       
       if (data.models && data.models.length > 0) {
         setTestResult('success')
@@ -54,7 +58,9 @@ export default function ConnectionSetup({ onConnect }: ConnectionSetupProps) {
       }
     } catch (error) {
       setTestResult('error')
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to connect')
+      const errorMsg = error instanceof Error ? error.message : 'Failed to connect'
+      setErrorMessage(errorMsg)
+      console.error('Connection test failed:', error)
     } finally {
       setTesting(false)
     }

@@ -1,5 +1,7 @@
 # O'Sheep 🐑
 
+https://o-sheep.vercel.app
+
 **Your Personal Ollama Chat Interface via Tailscale**
 
 A beautiful, privacy-focused web application that lets you chat with AI models running on your own Ollama instance, accessible anywhere via Tailscale Funnel.
